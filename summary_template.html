@@ -1,0 +1,408 @@
+<title>SEPA 코스피 검증</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+KR:wght@400;500;600&family=Noto+Serif+KR:wght@600;800&display=swap">
+<style>
+/* 레이아웃: 리서치 노트 한 단(본문 68자) + 표·차트는 넓은 단. 맨 위 판정, 그 아래 근거 순. */
+:root{
+  --paper:#f3f5f6; --sheet:#ffffff; --ink:#16202a; --mute:#5b6875; --line:#d8dee3; --line-soft:#e8ecef;
+  --stage2:#1d7356; --stage2-soft:#e3f1eb; --loss:#b3412e; --loss-soft:#f7e7e3; --amber:#a8701a; --amber-soft:#f6eedf;
+  --s1:#1d7356; --s2:#2d5d8b; --s3:#a8701a; --s4:#7c4f9e; --bench:#8a949e;
+  --f-display:"Noto Serif KR","Nanum Myeongjo",Georgia,serif;
+  --f-body:"IBM Plex Sans KR","Malgun Gothic","Apple SD Gothic Neo",system-ui,sans-serif;
+  --f-data:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --paper:#0f1519; --sheet:#151d23; --ink:#e3e8ec; --mute:#9aa6b1; --line:#2b3741; --line-soft:#212b33;
+  --stage2:#4fbf93; --stage2-soft:#16302a; --loss:#ec7a64; --loss-soft:#3a201b; --amber:#e0a94f; --amber-soft:#33281a;
+  --s1:#4fbf93; --s2:#7fb0e0; --s3:#e0a94f; --s4:#b892dc; --bench:#7d8892; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --paper:#0f1519; --sheet:#151d23; --ink:#e3e8ec; --mute:#9aa6b1; --line:#2b3741; --line-soft:#212b33;
+  --stage2:#4fbf93; --stage2-soft:#16302a; --loss:#ec7a64; --loss-soft:#3a201b; --amber:#e0a94f; --amber-soft:#33281a;
+  --s1:#4fbf93; --s2:#7fb0e0; --s3:#e0a94f; --s4:#b892dc; --bench:#7d8892; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--paper);color:var(--ink);font:15px/1.7 var(--f-body);margin:0}
+.page{max-width:1080px;margin:0 auto;padding-inline:20px;padding-block:40px 96px}
+.num,.mono,td,th{font-variant-numeric:tabular-nums}
+.mono{font-family:var(--f-data);font-size:.92em}
+header.top{display:grid;gap:14px;padding-bottom:28px;border-bottom:1px solid var(--line)}
+.eyebrow{font:500 12px/1 var(--f-data);letter-spacing:.08em;text-transform:uppercase;color:var(--mute)}
+h1{font:800 clamp(30px,5vw,46px)/1.15 var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.lede{font-size:18px;line-height:1.65;max-width:68ch;margin:0;text-wrap:pretty}
+.meta{display:flex;flex-wrap:wrap;gap:6px 18px;font-size:13px;color:var(--mute)}
+h2{font:600 clamp(21px,3vw,26px)/1.3 var(--f-display);margin:0;text-wrap:balance}
+h3{font:600 16px/1.4 var(--f-body);margin:0}
+section{display:grid;gap:18px;padding-block:44px 8px}
+.prose{max-width:68ch;display:grid;gap:10px}
+.prose p{margin:0}
+.q{font:500 12px/1 var(--f-data);color:var(--stage2);letter-spacing:.06em}
+.verdict{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px}
+.fig{background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:16px 18px;display:grid;gap:4px;align-content:start}
+.fig .v{font:500 30px/1.1 var(--f-data);letter-spacing:-.02em}
+.fig .l{font-size:13px;color:var(--mute)}
+.fig.win .v{color:var(--stage2)} .fig.lose .v{color:var(--loss)}
+.score{width:100%;border-collapse:collapse;font-size:14px}
+.score th,.score td{border-bottom:1px solid var(--line-soft);padding:12px 10px;vertical-align:top;text-align:left}
+.score thead th{font:500 12px/1.2 var(--f-data);color:var(--mute);letter-spacing:.05em;text-transform:uppercase;border-bottom:1px solid var(--line)}
+.score td:first-child{font-weight:600;white-space:nowrap}
+.chip{display:inline-block;font:500 12px/1 var(--f-body);padding:5px 9px;border-radius:999px;white-space:nowrap}
+.chip.yes{background:var(--stage2-soft);color:var(--stage2)}
+.chip.no{background:var(--loss-soft);color:var(--loss)}
+.chip.mix{background:var(--amber-soft);color:var(--amber)}
+.chip.na{background:var(--line-soft);color:var(--mute)}
+.wrap{overflow-x:auto;min-width:0}
+.panel{background:var(--sheet);border:1px solid var(--line);border-radius:6px;padding:18px 18px 12px;display:grid;gap:10px;min-width:0}
+.panel .cap{font-size:13px;color:var(--mute);max-width:80ch}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:13px}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.legend i{width:16px;height:3px;border-radius:2px;display:inline-block}
+.legend i.dash{background:repeating-linear-gradient(90deg,var(--bench) 0 5px,transparent 5px 8px)!important}
+svg text{fill:var(--mute);font:11px var(--f-data)}
+svg .grid{stroke:var(--line-soft);stroke-width:1}
+svg .axis{stroke:var(--line);stroke-width:1}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,460px),1fr));gap:16px}
+table.data{border-collapse:collapse;font-size:13px;width:100%}
+table.data th,table.data td{padding:7px 10px;border-bottom:1px solid var(--line-soft);text-align:right;white-space:nowrap}
+table.data thead th{font:500 11.5px/1.2 var(--f-data);color:var(--mute);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--sheet)}
+table.data td.l,table.data th.l{text-align:left}
+table.data tr.hl td{background:var(--stage2-soft)}
+td.neg{color:var(--loss)} td.pos{color:var(--stage2)}
+.tl{display:grid;gap:2px}
+.tl .row{display:grid;grid-template-columns:minmax(150px,1.2fr) 90px 92px 92px 3fr;gap:10px;align-items:start;padding:10px 0;border-bottom:1px solid var(--line-soft);font-size:13.5px}
+.tl .row.h{font:500 11.5px/1.2 var(--f-data);color:var(--mute);text-transform:uppercase;letter-spacing:.04em;border-bottom:1px solid var(--line)}
+.tl .name{font-weight:600}
+.tl .trades{display:flex;flex-wrap:wrap;gap:4px}
+.tr{font:12px/1.4 var(--f-data);padding:3px 7px;border-radius:4px;background:var(--line-soft);color:var(--mute)}
+.tr.big{background:var(--stage2-soft);color:var(--stage2)}
+.tr.lost{background:var(--loss-soft);color:var(--loss)}
+.notes{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr))}
+.note{border-top:2px solid var(--line);padding-top:10px;font-size:13.5px;display:grid;gap:4px}
+.note b{font-weight:600}
+ol.reco{margin:0;padding-left:22px;display:grid;gap:8px;max-width:72ch}
+footer{margin-top:48px;padding-top:18px;border-top:1px solid var(--line);font-size:12.5px;color:var(--mute);display:grid;gap:4px}
+@media (max-width:640px){
+  .tl .row{grid-template-columns:1fr 1fr;}
+  .tl .row.h{display:none}
+  .tl .trades{grid-column:1/-1}
+  body{font-size:14.5px}
+}
+</style>
+
+<div class="page">
+<header class="top">
+  <div class="eyebrow">유진 리서치 · 퀀트 검증 노트 · 기준일 <span data-k="asof"></span></div>
+  <h1>미너비니 SEPA는 코스피에서 통하는가</h1>
+  <p class="lede">『초수익 성장주 투자』의 SEPA 규칙(추세 템플릿, 펀더멘털, VCP 진입, 시장 국면, 손절)을 코스피에 규칙화해
+  포인트인타임으로 백테스트했다. <b>책을 그대로 옮기면 포트폴리오가 성립하지 않는다.</b>
+  추세 템플릿 위에 <b>펀더멘털 필터와 8% 손절</b>을 얹은 조합만 표본 내·외에서 꾸준했다.</p>
+  <div class="meta">
+    <span>가격 2009-06 ~ <span data-k="asof"></span> · 한투 Open API 수정주가(상장폐지 776종목 포함)</span>
+    <span>재무 DART 2016Q1~ · 공시일 다음 영업일부터 사용</span>
+    <span>표본 내 ~2019 / 표본 외 2020~</span>
+  </div>
+</header>
+
+<section>
+  <div class="verdict">
+    <div class="fig win"><div class="v" data-k="exp.HB8.CAGR" data-f="pct"></div><div class="l">최선 조합 연수익률 · 추세 템플릿 + 펀더멘털 + 50일 신고가 돌파, 손절 8% (2016-06~, 샤프 <span data-k="exp.HB8.Sharpe" data-f="n2"></span>)</div></div>
+    <div class="fig"><div class="v" data-k="bench16.KOSPI.CAGR" data-f="pct"></div><div class="l">같은 기간 KOSPI · KOSPI200 <span data-k="bench16.KOSPI200.CAGR" data-f="pct"></span>, 동일가중 <span data-k="bench16.KOSPI 동일가중.CAGR" data-f="pct"></span></div></div>
+    <div class="fig lose"><div class="v" data-k="exp.D.CAGR" data-f="pct"></div><div class="l">책 그대로(SEPA 전체) · 10년간 진입 <span data-k="exp.D.Trades" data-f="int"></span>건, 평균 보유 <span data-k="d_hold" data-f="n2"></span>종목</div></div>
+  </div>
+  <div class="prose">
+    <p>최선 조합은 표본 내 <span class="mono" data-k="exp.HB8.IS_CAGR" data-f="pct"></span>, 표본 외 <span class="mono" data-k="exp.HB8.OOS_CAGR" data-f="pct"></span>로 무너지지 않았지만
+    시가총액 가중 지수를 이기지는 못했다. 2025~26년 대형주 급등 구간에서 차이가 벌어졌다. 동일가중 코스피는 크게 앞선다.</p>
+  </div>
+</section>
+
+<section>
+  <h2>구성 요소별 판정</h2>
+  <div class="wrap"><table class="score">
+    <thead><tr><th>요소</th><th>판정</th><th>근거 (60일 초과수익은 코스피 유니버스 동일가중 대비)</th></tr></thead>
+    <tbody>
+      <tr><td>추세 템플릿 + 신고가 돌파</td><td><span class="chip no">엣지 없음</span></td>
+        <td>돌파 신호 60일 초과 표본 내 <span class="mono" data-k="ev.brk_is.x60" data-f="pct2"></span>(<span data-k="ev.brk_is.n" data-f="int"></span>건), 표본 외 <span class="mono" data-k="ev.brk_oos.x60" data-f="pct2"></span>(<span data-k="ev.brk_oos.n" data-f="int"></span>건). 승률 20%가 손익비 3.8을 상쇄.</td></tr>
+      <tr><td>펀더멘털 필터</td><td><span class="chip yes">효과 있음</span></td>
+        <td>통과 <span class="mono" data-k="ev.fund_y.x60" data-f="pct"></span> vs 미통과 <span class="mono" data-k="ev.fund_n.x60" data-f="pct"></span>. 표본 외에서도 <span class="mono" data-k="ev.fund_y_oos.x60" data-f="pct"></span> vs <span class="mono" data-k="ev.fund_n_oos.x60" data-f="pct"></span>. 포트폴리오 A <span class="mono" data-k="exp.A.CAGR" data-f="pct"></span> → B <span class="mono" data-k="exp.B.CAGR" data-f="pct"></span>.</td></tr>
+      <tr><td>VCP 진입</td><td><span class="chip mix">질은 좋으나 희소</span></td>
+        <td>VCP 60일 초과 표본 내 <span class="mono" data-k="ev.vcp_is.x60" data-f="pct"></span>, 표본 외 <span class="mono" data-k="ev.vcp_oos.x60" data-f="pct"></span>. 그러나 15년간 <span data-k="n_vcp" data-f="int"></span>건이고, 펀더멘털과 겹치면 <span data-k="ev.vcp_fund.n" data-f="int"></span>건에 <span class="mono" data-k="ev.vcp_fund.x60" data-f="pct"></span>로 효과가 더해지지 않는다.</td></tr>
+      <tr><td>시장 국면 필터</td><td><span class="chip mix">박스권 방어용</span></td>
+        <td>2011~16 누적 손실을 크게 줄였고 MDD <span class="mono" data-k="exp11.A_full.MDD" data-f="pct0"></span> → <span class="mono" data-k="exp11.A_reg_full.MDD" data-f="pct0"></span>. 표본 외 연수익은 <span class="mono" data-k="exp11.A_full.OOS_CAGR" data-f="pct"></span> → <span class="mono" data-k="exp11.A_reg_full.OOS_CAGR" data-f="pct"></span>로 오히려 손해.</td></tr>
+      <tr><td>손절폭</td><td><span class="chip yes">8%</span></td>
+        <td>5% <span class="mono" data-k="stops.HB5.CAGR" data-f="pct"></span> · 7%(책) <span class="mono" data-k="stops.HB7.CAGR" data-f="pct"></span> · 8% <span class="mono" data-k="stops.HB8.CAGR" data-f="pct"></span>. 8%는 표본 내 최적이고 표본 외에서도 유지.</td></tr>
+      <tr><td>경기민감주</td><td><span class="chip yes">오히려 유리</span></td>
+        <td>펀더멘털 통과 신호 중 경기민감 <span class="mono" data-k="ev.cyc_fund.x60" data-f="pct"></span>(<span data-k="ev.cyc_fund.n" data-f="int"></span>건) vs 비경기민감 <span class="mono" data-k="ev.grw_fund.x60" data-f="pct"></span>(<span data-k="ev.grw_fund.n" data-f="int"></span>건). 코드 33은 <span data-k="ev.cyc_c33.n" data-f="int"></span>+<span data-k="ev.grw_c33.n" data-f="int"></span>건뿐이라 판단 불가.</td></tr>
+      <tr><td>촉매 점수</td><td><span class="chip na">판단 보류</span></td>
+        <td>하위 1/3 <span class="mono" data-k="ev.cat_lo.x60" data-f="pct"></span> · 중간 <span class="mono" data-k="ev.cat_mid.x60" data-f="pct"></span> · 상위 <span class="mono" data-k="ev.cat_hi.x60" data-f="pct"></span>로 단조롭지 않다. 과거 수급 데이터가 없고 테마 소속은 현재 스냅샷이라 룩어헤드가 있다.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section>
+  <h2>2016년 6월 이후 누적 성과</h2>
+  <div class="panel">
+    <div class="legend" id="lg16"></div>
+    <div id="ch16"></div>
+    <div class="cap">월말 기준, 로그 눈금, 시작 = 1. 가격지수 기준(배당 제외)이라 벤치마크와 같은 조건이다. 펀더멘털 데이터가 2016Q1부터라 이 구간이 공통 비교 기간이다.</div>
+  </div>
+</section>
+
+<section>
+  <h2>손절폭은 몇 %가 맞나</h2>
+  <div class="prose"><p>책은 7~8%를 권한다. 표본이 작은 SEPA 전체(D) 대신, 같은 청산 규칙을 거래가 300건 넘는 최선 조합에 적용해 손절폭만 바꿨다.
+  5%는 잦은 손절과 비용으로 무너지고 8%에서 정점을 찍는다. 10% 이상은 표본 외가 더 좋았지만 표본 내에서는 고를 수 없는 값이다(12%·15%는 책의 상한을 넘는 확장 실험).</p></div>
+  <div class="panel">
+    <div class="legend"><span><i style="background:var(--s2)"></i>전체 기간 연수익률</span><span><i style="background:var(--s3);height:8px;width:8px;border-radius:50%"></i>표본 내</span><span><i style="background:var(--s4);height:8px;width:8px;border-radius:50%"></i>표본 외</span></div>
+    <div id="chStop"></div>
+  </div>
+</section>
+
+<section>
+  <h2>신호 단위로 본 필터의 가치</h2>
+  <div class="prose"><p>포트폴리오 슬롯(최대 10종목)의 영향을 빼려고, 모든 신호를 다음날 시가에 샀다고 보고 60영업일 뒤 성과를 코스피 유니버스 동일가중과 비교했다.
+  막대 옆 숫자는 신호 수다.</p></div>
+  <div class="panel"><div id="chEv"></div></div>
+</section>
+
+<section>
+  <h2>2011년 이후 — 추세 전용 전략과 국면 필터</h2>
+  <div class="two">
+    <div class="panel">
+      <div class="legend" id="lg11"></div>
+      <div id="ch11"></div>
+      <div class="cap">펀더멘털 없이 2011년부터. 박스피(2011~16)와 약세장(2018, 2022)에서 국면 필터(KOSPI가 상승하는 200일선 위일 때만 신규 진입)가 손실을 줄였다.</div>
+    </div>
+    <div class="panel">
+      <h3>연도별 수익률</h3>
+      <div class="wrap"><table class="data" id="tbYear"></table></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>2023년 이후 주도주를 언제 잡았나</h2>
+  <div class="prose"><p>2023년 초 코스피 유니버스(시총 5,000억 이상) 중 최신일까지 상승률 상위 10종목을 데이터로 골랐다(업종당 최대 2개).
+  <b>추세 템플릿은 모두 2023년 안에 잡았고</b>, 상승폭의 절반에 닿기 1~3년 전이었다. 반면 VCP는 V자 반등 뒤 계속 신고가를 낸 주도주에서 거의 나오지 않아
+  SEPA 전체는 한 종목도 담지 못했다. 큰 수익은 추세 + 펀더멘털 + 돌파(B)에서 나왔고, 놓친 구간은 7% 손절 반복 탈락과 50일선 이탈 뒤 늦은 재진입 때문이다.</p></div>
+  <div class="panel"><div class="tl" id="tlLead"></div>
+    <div class="cap">A = 추세 템플릿 + 돌파, B = A + 펀더멘털(둘 다 손절 7%, 2016-06~ 실험). 초록 = +30% 이상, 빨강 = 손절.</div></div>
+</section>
+
+<section>
+  <h2>실험 A~H 전체</h2>
+  <div class="panel"><div class="wrap"><table class="data" id="tbExp"></table></div>
+  <div class="cap">2016-06 ~ <span data-k="asof"></span>. A 추세 템플릿 + 50일 신고가 돌파 · B A + 펀더멘털 · C0 VCP만 · C B + VCP · D C + 국면 · E D + 촉매 우선순위 · F D + 코스닥 · G D − 경기민감 · D′ 동일가중 국면 · D″ 브레드스 국면 · D‴ 유진 리서치 디텍터 국면.
+  C 이하는 거래가 수십 건이라 순위를 매길 수 없다.</div></div>
+</section>
+
+<section>
+  <h2>코스피용 조정 제안</h2>
+  <ol class="reco">
+    <li><b>VCP는 관문이 아니라 가점으로.</b> 진입 조건으로 쓰면 신호가 연 수 건으로 줄어 포트폴리오가 비어 있다.</li>
+    <li><b>펀더멘털 필터는 유지하고 경기민감주를 빼지 않는다.</b> 필터의 효과가 대부분 반도체·전력기기·조선·기계에서 나왔다.</li>
+    <li><b>손절은 8%.</b> 2R 도달 시 본전 상향은 유지하되, 50일선 회복 + 신고가 재진입 규칙을 추가해 주도주의 2차 상승을 다시 잡는다.</li>
+    <li><b>국면 필터는 박스권 방어용.</b> 강세장에서 완화하는 변형을 다음 실험으로 둔다.</li>
+    <li><b>유니버스를 넓힌다.</b> 거래대금 30억 기준이 코스피 유니버스를 하루 200종목 안팎으로 묶는다.</li>
+  </ol>
+</section>
+
+<section>
+  <h2>오늘의 후보 (<span id="scDate"></span>)</h2>
+  <div class="prose"><p>추세 템플릿 8조건을 모두 통과한 코스피 종목. 펀더멘털 통과는 최신 공시 분기 기준, 수급은 한투 최근 20영업일 외국인+기관 순매수 / 시총.</p></div>
+  <div class="panel"><div class="wrap"><table class="data" id="tbScreen"></table></div></div>
+</section>
+
+<section>
+  <h2>데이터와 한계</h2>
+  <div class="notes">
+    <div class="note"><b>가격</b>한투 Open API 수정주가. 상장폐지 종목을 포함해 생존편향이 없다. KRX 등락률 누적값과 교차검증해 종목별 비율 변동계수 중앙값 0.0015%.</div>
+    <div class="note"><b>재무</b>DART 다중회사 주요계정. 매출·영업이익·연결 당기순이익(지배주주 아님). 공시일 다음 영업일부터 사용. 흑자전환은 성장으로 판정.</div>
+    <div class="note"><b>비활성</b>과거 외국인·기관 수급(KRX 접속 제한), 잠정실적 서프라이즈·컨센서스(데이터 없음). 추정값으로 채우지 않았다.</div>
+    <div class="note"><b>근사</b>과거 시총 = 최종 상장주식수 × 수정종가. 관리종목·투자경고 이력은 적용하지 못했다.</div>
+    <div class="note"><b>공매도 금지 구간</b>추세 전략이 그 구간에 강했던 것은 시장이 강세였기 때문이다(같은 구간 KOSPI 연 30%).</div>
+    <div class="note"><b>비용</b>슬리피지 편도 0.1%, 수수료 0.015%, 매도 시 연도별 증권거래세(2026년 0.20%).</div>
+  </div>
+</section>
+
+<footer>
+  <span>유진 리서치 · 원자료와 코드: superperformance_kospi/ (backtest_report.html, trades.csv, conclusions.md)</span>
+  <span>과거 성과이며 미래 수익을 보장하지 않는다.</span>
+</footer>
+</div>
+
+<script>
+const D = /*__DATA__*/null;
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const byKey = (arr) => Object.fromEntries((arr||[]).map(r => [r.key, r]));
+const IDX = {exp: byKey(D.exp), exp11: byKey(D.exp11), stops: byKey(D.stops)};
+const fmt = {
+  pct: v => v==null ? "–" : (v>0?"+":"") + (v*100).toFixed(1) + "%",
+  pct2: v => v==null ? "–" : (v>0?"+":"") + (v*100).toFixed(2) + "%",
+  pct0: v => v==null ? "–" : (v*100).toFixed(0) + "%",
+  n2: v => v==null ? "–" : v.toFixed(2),
+  int: v => v==null ? "–" : Math.round(v).toLocaleString("ko-KR"),
+  raw: v => v==null ? "–" : String(v)
+};
+function get(path){
+  const [head, ...rest] = path.split(".");
+  let o = (head in IDX) ? IDX[head] : D[head];
+  // 키 자체에 점이 없는 경우만 쓴다(벤치마크 이름의 공백은 허용)
+  for (const k of rest) { if (o == null) return null; o = o[k]; }
+  return o;
+}
+document.querySelectorAll("[data-k]").forEach(el => {
+  const v = get(el.dataset.k); el.textContent = (fmt[el.dataset.f] || fmt.raw)(v);
+});
+
+// ── 선 차트(로그) ──
+const SERIES_COLORS = ["--s1","--s2","--s3","--bench","--bench"];
+function lineChart(host, legendHost, curves, opt={}){
+  const names = Object.keys(curves);
+  const W = 1000, H = opt.h || 380, m = {l:46, r:16, t:12, b:28};
+  const all = names.flatMap(n => curves[n].map(p => p[1])).filter(v => v>0);
+  let lo = Math.log(Math.min(...all)), hi = Math.log(Math.max(...all));
+  const pad = (hi-lo)*0.06; lo -= pad; hi += pad;
+  const dates = curves[names[0]].map(p => p[0]);
+  const N = Math.max(...names.map(n => curves[n].length));
+  const x = i => m.l + (W-m.l-m.r) * i/(N-1);
+  const y = v => m.t + (H-m.t-m.b) * (1 - (Math.log(v)-lo)/(hi-lo));
+  let g = "";
+  // y 눈금: 실제 범위 안의 '보기 좋은' 배수만
+  const cand = [0.25,0.3,0.4,0.5,0.6,0.7,0.8,1,1.25,1.5,2,2.5,3,4,5,6,8,10];
+  cand.filter(v => Math.log(v)>=lo && Math.log(v)<=hi).forEach(v => {
+    g += `<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${v}×</text>`;
+  });
+  dates.forEach((d,i) => { if (d.endsWith("-01") && (+d.slice(0,4)) % (opt.yearStep||1) === 0)
+    g += `<line class="grid" x1="${x(i)}" x2="${x(i)}" y1="${m.t}" y2="${H-m.b}"/><text x="${x(i)}" y="${H-8}" text-anchor="middle">${d.slice(0,4)}</text>`; });
+  g += `<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${y(1)}" y2="${y(1)}"/>`;
+  names.forEach((n,k) => {
+    const c = css(SERIES_COLORS[k]); const dash = k>=3 ? (k===4 ? ' stroke-dasharray="2 4"' : ' stroke-dasharray="7 5"') : "";
+    const pts = curves[n].map((p,i) => `${x(i).toFixed(1)},${y(p[1]).toFixed(1)}`).join(" ");
+    g += `<polyline fill="none" stroke="${c}" stroke-width="${k===0?2.6:1.7}" stroke-linejoin="round"${dash} points="${pts}"/>`;
+    const lp = curves[n][curves[n].length-1];
+    g += `<circle cx="${x(curves[n].length-1)}" cy="${y(lp[1])}" r="3" fill="${c}"/>`;
+  });
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="누적 성과 차트">${g}</svg>`;
+  legendHost.innerHTML = names.map((n,k) => {
+    const lp = curves[n][curves[n].length-1][1];
+    const st = k>=3 ? `class="dash"` : `style="background:${css(SERIES_COLORS[k])}"`;
+    return `<span><i ${st}></i>${n} <b class="mono">${lp.toFixed(2)}×</b></span>`;
+  }).join("");
+}
+
+// ── 손절폭 막대 ──
+function stopChart(host){
+  const rows = D.stops.map(r => ({s: r.label.match(/(\d+)%/)[1], c: r.CAGR, i: r.IS_CAGR, o: r.OOS_CAGR, sh: r.Sharpe}));
+  const W = 1000, H = 300, m = {l:46, r:16, t:16, b:40};
+  const vals = rows.flatMap(r => [r.c, r.i, r.o]);
+  const lo = Math.min(0, ...vals) - 0.01, hi = Math.max(...vals) + 0.01;
+  const y = v => m.t + (H-m.t-m.b) * (hi - v)/(hi-lo);
+  const bw = (W-m.l-m.r)/rows.length;
+  let g = "";
+  for (let v = Math.ceil(lo*50)/50; v <= hi; v += 0.02) {
+    g += `<line class="grid" x1="${m.l}" x2="${W-m.r}" y1="${y(v)}" y2="${y(v)}"/><text x="${m.l-8}" y="${y(v)+4}" text-anchor="end">${(v*100).toFixed(0)}%</text>`;
+  }
+  g += `<line class="axis" x1="${m.l}" x2="${W-m.r}" y1="${y(0)}" y2="${y(0)}"/>`;
+  rows.forEach((r,k) => {
+    const cx = m.l + bw*k + bw/2, w = Math.min(70, bw*0.5);
+    const best = r.s === "8";
+    const col = r.c < 0 ? css("--loss") : css(best ? "--s1" : "--s2");
+    g += `<rect x="${cx-w/2}" y="${Math.min(y(r.c),y(0))}" width="${w}" height="${Math.abs(y(r.c)-y(0))}" fill="${col}" opacity="${best?1:0.75}" rx="2"/>`;
+    g += `<circle cx="${cx+w/2+12}" cy="${y(r.i)}" r="5" fill="${css("--s3")}"/><circle cx="${cx+w/2+26}" cy="${y(r.o)}" r="5" fill="${css("--s4")}"/>`;
+    g += `<text x="${cx}" y="${(r.c>=0?y(r.c)-6:y(r.c)+14)}" text-anchor="middle" style="fill:var(--ink);font-weight:500">${fmt.pct(r.c)}</text>`;
+    g += `<text x="${cx}" y="${H-14}" text-anchor="middle" style="fill:var(--ink)">손절 ${r.s}%</text>`;
+    g += `<text x="${cx}" y="${H-1}" text-anchor="middle">샤프 ${r.sh.toFixed(2)}</text>`;
+  });
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="손절폭별 연수익률">${g}</svg>`;
+}
+
+// ── 이벤트 스터디 가로 막대 ──
+function evChart(host){
+  const E = D.ev;
+  const groups = [
+    ["추세 템플릿 + 50일 돌파", [["표본 내", E.brk_is], ["표본 외", E.brk_oos]]],
+    ["돌파 신호 × 펀더멘털 (2016-06~)", [["펀더멘털 통과", E.fund_y], ["미통과", E.fund_n], ["통과 · 표본 외", E.fund_y_oos], ["미통과 · 표본 외", E.fund_n_oos]]],
+    ["VCP 피벗 돌파", [["표본 내", E.vcp_is], ["표본 외", E.vcp_oos], ["VCP + 펀더멘털 (2016-06~)", E.vcp_fund]]],
+    ["펀더멘털 통과 신호의 업종", [["경기민감", E.cyc_fund], ["비경기민감", E.grw_fund]]],
+  ];
+  const rows = []; groups.forEach(([gname, items]) => { rows.push({head:gname}); items.forEach(([l,v]) => rows.push({l, v})); });
+  const W = 1000, rh = 30, hh = 34, m = {l:250, r:90};
+  const vals = rows.filter(r => r.v).map(r => r.v.x60);
+  const lo = Math.min(-0.04, ...vals), hi = Math.max(0.08, ...vals);
+  const x = v => m.l + (W-m.l-m.r) * (v-lo)/(hi-lo);
+  let yy = 4, g = "";
+  const H = rows.reduce((s,r) => s + (r.head ? hh : rh), 8) + 20;
+  for (let v = Math.ceil(lo*50)/50; v <= hi + 1e-9; v += 0.02)
+    g += `<line class="grid" x1="${x(v)}" x2="${x(v)}" y1="0" y2="${H-20}"/><text x="${x(v)}" y="${H-4}" text-anchor="middle">${(v*100).toFixed(0)}%</text>`;
+  g += `<line class="axis" x1="${x(0)}" x2="${x(0)}" y1="0" y2="${H-20}"/>`;
+  rows.forEach(r => {
+    if (r.head) { g += `<text x="0" y="${yy+22}" style="fill:var(--ink);font:600 13px var(--f-body)">${r.head}</text>`; yy += hh; return; }
+    const v = r.v.x60, col = v < 0 ? css("--loss") : css("--s1");
+    g += `<text x="14" y="${yy+19}" style="fill:var(--ink);font:13px var(--f-body)">${r.l}</text>`;
+    g += `<rect x="${Math.min(x(0),x(v))}" y="${yy+7}" width="${Math.abs(x(v)-x(0))}" height="16" fill="${col}" rx="2"/>`;
+    const tx = v >= 0 ? x(v)+6 : x(0)+6;
+    g += `<text x="${tx}" y="${yy+19}" style="fill:var(--ink)">${fmt.pct(v)} <tspan style="fill:var(--mute)">n=${r.v.n.toLocaleString("ko-KR")}</tspan></text>`;
+    yy += rh;
+  });
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="신호 60일 초과수익">${g}</svg>`;
+}
+
+// ── 표 ──
+function cls(v){ return v==null ? "" : (v<0 ? "neg" : "") }
+function tableYear(){
+  const keys = Object.keys(D.yearly[0]).filter(k => k !== "y" && k !== "KOSPI 동일가중");
+  const lab = {"A 추세템플릿+돌파 (2011~)":"A 추세만","A + 국면필터 (2011~)":"A + 국면","KOSPI":"KOSPI"};
+  let h = `<thead><tr><th class="l">연도</th>${keys.map(k => `<th>${lab[k]||k}</th>`).join("")}</tr></thead><tbody>`;
+  D.yearly.forEach(r => {
+    const mark = (r.y <= 2016 || r.y === 2018 || r.y === 2022) ? ' class="hl"' : "";
+    h += `<tr${mark}><td class="l">${r.y}${r.y==+D.asof.slice(0,4)?"*":""}</td>${keys.map(k => `<td class="${cls(r[k])}">${fmt.pct(r[k])}</td>`).join("")}</tr>`;
+  });
+  document.getElementById("tbYear").innerHTML = h + `</tbody>`;
+}
+function tableExp(){
+  const cols = [["CAGR","연수익","pct"],["vs_KOSPI","KOSPI 대비","pct"],["MDD","MDD","pct0"],["Sharpe","샤프","n2"],["Trades","거래","int"],
+    ["WinRate","승률","pct0"],["PayoffRatio","손익비","n2"],["IS_CAGR","표본 내","pct"],["OOS_CAGR","표본 외","pct"]];
+  let h = `<thead><tr><th class="l">실험</th>${cols.map(c => `<th>${c[1]}</th>`).join("")}</tr></thead><tbody>`;
+  D.exp.forEach(r => {
+    h += `<tr${r.key==="HB8"?' class="hl"':""}><td class="l">${r.label.replace("H 손절 8% (B, 표본 큼)","B + 손절 8% (최선)")}</td>${cols.map(([k,,f]) => `<td class="${["CAGR","vs_KOSPI","IS_CAGR","OOS_CAGR"].includes(k)?cls(r[k]):""}">${fmt[f](r[k])}</td>`).join("")}</tr>`;
+  });
+  Object.entries(D.bench16).forEach(([n,b]) => { h += `<tr><td class="l" style="color:var(--mute)">${n}</td><td>${fmt.pct(b.CAGR)}</td><td></td><td>${fmt.pct0(b.MDD)}</td><td>${fmt.n2(b.Sharpe)}</td><td colspan="5"></td></tr>`; });
+  document.getElementById("tbExp").innerHTML = h + `</tbody>`;
+}
+function timeline(){
+  let h = `<div class="row h"><div>종목</div><div>2023~ 수익</div><div>첫 템플릿 통과</div><div>절반 도달</div><div>A·B 거래</div></div>`;
+  D.leaders.forEach(L => {
+    const tr = L.trades.length ? L.trades.map(t => {
+      const c = t.ret >= 0.3 ? "big" : (t.why.startsWith("stop") && t.ret < 0 ? "lost" : "");
+      return `<span class="tr ${c}">${t.exp} ${t.in.slice(2,7).replace("-",".")}→${t.out==="보유중"?"보유":t.out.slice(2,7).replace("-",".")} ${fmt.pct(t.ret)}</span>`;
+    }).join("") : `<span class="tr">거래 없음</span>`;
+    h += `<div class="row"><div class="name">${L.name}<div class="mono" style="color:var(--mute);font-weight:400">VCP 신호 ${L.vcp}건</div></div><div class="mono pos">${fmt.pct0(L.ret).replace(/^/,"+")}</div><div class="mono">${L.tt}</div><div class="mono">${L.half}</div><div class="trades">${tr}</div></div>`;
+  });
+  document.getElementById("tlLead").innerHTML = h;
+}
+function tableScreen(){
+  const s = D.screen; const d = s.date; document.getElementById("scDate").textContent = `${d.slice(0,4)}-${d.slice(4,6)}-${d.slice(6)}`;
+  const cols = [["종목명","종목","l"],["업종","업종","l"],["RS","RS","int"],["EPS_YoY_q0","EPS YoY","pct0"],["매출_YoY_q0","매출 YoY","pct0"],
+    ["fund_pass","펀더멘털","b"],["경기민감","경기민감","b"],["VCP 수축","VCP 수축","l"],["피벗대비","피벗 대비","pct"],["수급20일/시총","수급/시총","pct"],["테마","테마","l"]];
+  let h = `<thead><tr>${cols.map(c => `<th class="${c[2]==="l"?"l":""}">${c[1]}</th>`).join("")}</tr></thead><tbody>`;
+  s.rows.forEach(r => {
+    h += `<tr${r.fund_pass?' class="hl"':""}>` + cols.map(([k,,f]) => {
+      const v = r[k];
+      if (f === "l") return `<td class="l">${v==null?"":String(v).replace(/,?\s*미분류,?/g,"").replace(/^,\s*/,"")}</td>`;
+      if (f === "b") return `<td>${v ? "●" : ""}</td>`;
+      if (k === "EPS_YoY_q0" && v == null) return `<td style="color:var(--mute)">${r.fund_pass ? "흑자전환" : "–"}</td>`;
+      return `<td class="${f==="pct"||f==="pct0"?cls(v):""}">${fmt[f](v)}</td>`;
+    }).join("") + `</tr>`;
+  });
+  document.getElementById("tbScreen").innerHTML = h + `</tbody>`;
+}
+function drawAll(){
+  lineChart(document.getElementById("ch16"), document.getElementById("lg16"), D.curves16, {h:380});
+  lineChart(document.getElementById("ch11"), document.getElementById("lg11"), D.curves11, {h:420, yearStep:3});
+  stopChart(document.getElementById("chStop"));
+  evChart(document.getElementById("chEv"));
+}
+tableYear(); tableExp(); timeline(); tableScreen(); drawAll();
+// 테마 전환 시 SVG 색을 다시 칠한다
+window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", drawAll);
+new MutationObserver(drawAll).observe(document.documentElement, {attributes:true, attributeFilter:["data-theme"]});
+</script>

@@ -1,0 +1,103 @@
+# 초수익 성장주(SEPA) 코스피 — 전체 파라미터
+# 모든 임계값은 여기서만 바꾼다. 파라미터는 2011~2019(펀더멘털 실험은 2016~2019)에서 정하고 2020~ 는 표본 외.
+
+data:
+  start: "2009-06-01"        # 200일선·252일 RS 워밍업 포함
+  end: null                  # null = 최신 영업일
+  markets: [KOSPI, KOSDAQ]   # 수집 대상(백테스트 유니버스는 universe.markets 로 고른다)
+  dir: data
+
+universe:
+  markets: [KOSPI]           # 실험 F 에서 [KOSPI, KOSDAQ]
+  min_value_20d_krw: 3.0e+9  # 20일 평균 거래대금 30억원
+  min_mktcap_krw: 1.0e+11    # 시총 1,000억원
+  exclude_name_patterns: ["스팩", "기업인수목적", "리츠", "REIT", "인프라", "선박투자", "투자회사", "유전"]
+  halt_lookback: 5           # 최근 N일 안에 거래량 0(정지)이 있으면 제외
+
+trend:
+  ma_short: 50
+  ma_mid: 150
+  ma_long: 200
+  ma200_rising_lag: 21       # 21 / 63 / 105
+  above_52w_low: 1.30
+  near_52w_high: 0.75
+  rs_min: 70
+  rs_weights: {63: 0.4, 126: 0.2, 189: 0.2, 252: 0.2}
+  min_history: 252
+
+fundamentals:
+  eps_yoy_min: 0.25
+  sales_yoy_min: 0.10
+  require_accel_or_code33: true
+  decel_ratio: 0.5           # 직전 대비 1/2 이하로 꺾이면 경고
+  min_base_bil: 1.0          # 전년 동기 이익이 이 값(십억원) 미만이면 성장률 NaN(분모 왜곡 방지)
+  lag_days: 1                # 공시일 다음 영업일부터 사용
+  turnaround_as_growth: true # 적자→흑자 전환을 성장률 +∞ 로 판정(표시값은 NaN)
+
+vcp:
+  lookback_days: 325         # 65주
+  min_base_days: 15          # 3주
+  swing_pct: 0.03            # 지그재그 스윙 인정 조정폭
+  min_contractions: 2
+  max_contractions: 6
+  first_max: 0.35
+  last_max: 0.12
+  pivot_near_high: 0.0       # 피벗 ≥ 베이스 고점 × 값. 0.90 은 육안상 책 그림에 가깝지만 표본 내(2011~19) 60일 초과수익 7.5%→4.5% 로 낮아져 미채택
+  shrink_tol: 1.10           # 다음 수축이 직전의 110% 이하면 '감소'로 인정
+  dryup_ratio: 0.70          # 마지막 수축 평균거래량 < 50일 평균 × 0.7
+  breakout_vol: 1.4          # 돌파일 거래량 ≥ 50일 평균 × 1.4
+  pivot_valid_days: 20       # 피벗은 마지막 수축 저점 이후 N일 안에 돌파해야 유효
+  power_play: {run_days: 40, run_pct: 1.0, flag_min: 15, flag_max: 30, flag_max_dd: 0.25}
+
+breakout:                    # 실험 A/B 의 '단순 신고가 돌파' 진입
+  high_lookback: 50          # 종가가 직전 50일 최고가 돌파
+  vol_mult: 1.4
+
+regime:
+  index: KOSPI
+  ma: 200
+  rising_lag: 21
+  breadth_min: 0.10          # 추세 템플릿 통과 비율 임계(변형)
+
+catalyst:
+  new_high_days: 60
+  flow_days: 20
+  theme_rel_days: 20
+  weights: {flow: 1.0, new_high: 0.5, theme: 0.5}
+
+backtest:
+  start: "2011-01-01"
+  in_sample_end: "2019-12-31"
+  initial_capital: 1.0e+9
+  stop_pct: 0.07             # 5/7/8/10 민감도
+  stop_max: 0.10
+  use_contraction_low: true  # 마지막 수축 저점이 더 가까우면 그쪽
+  trail_2r_to_breakeven: true
+  trail_3r_to_1r: true
+  ma50_exit_vol: 1.5
+  partial_take: {enabled: false, gain: 0.20, within_days: 15, fraction: 0.5}
+  risk_per_trade: 0.01
+  max_weight: 0.20
+  max_positions: 10
+  slippage: 0.001            # 편도
+  commission: 0.00015        # 편도
+  # 매도 시 증권거래세(농특세 포함). (시행일, KOSPI, KOSDAQ)
+  sell_tax:
+    - ["2009-01-01", 0.0030, 0.0030]
+    - ["2019-06-03", 0.0025, 0.0025]
+    - ["2021-01-01", 0.0023, 0.0023]
+    - ["2023-01-01", 0.0020, 0.0020]
+    - ["2024-01-01", 0.0018, 0.0018]
+    - ["2025-01-01", 0.0015, 0.0015]
+    - ["2026-01-01", 0.0020, 0.0020]
+  short_ban:
+    - ["2020-03-16", "2021-05-02"]
+    - ["2023-11-06", "2025-03-30"]
+
+# 경기민감 여부: 업종명(한투 지수업종) + 표준산업분류에 키워드가 부분일치하면 경기민감
+cyclical_sectors: ["화학", "철강", "금속", "기계", "운수장비", "운송장비", "선박", "자동차", "반도체", "전자부품", "전기,전자", "건설", "비금속", "시멘트", "종이", "펄프", "운수창고", "해운", "석유", "섬유", "증권"]
+cyclical_exclude: ["기타 화학제품", "화장품"]   # 코스맥스·한국콜마 같은 화장품 ODM 이 "화학"에 걸리는 것 방지
+
+paths:
+  theme_master_glob: "../theme_rotation_report/weekly-theme-report/data/processed/master/theme_master_normalized_*.csv"
+  regime_csv: "../macro_dynamic/output/regime_df.csv"   # 유진 리서치 디텍터 월별 레짐
