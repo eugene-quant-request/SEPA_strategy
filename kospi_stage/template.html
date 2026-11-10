@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>코스피 4단계 국면 판정</title>
+<style>
+:root{
+  --surface-0:#f4f3f0; --surface-1:#fcfcfb; --line:#e3e2de; --grid:#ecebe7;
+  --text-primary:#0b0b0b; --text-secondary:#52514e; --text-muted:#86857f;
+  --st1:#8a8984; --st2:#2a78d6; --st3:#eda100; --st4:#e34948;
+  --ma50:#1baf7a; --ma150:#6250d6; --ma200:#eb6834;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--surface-0);color:var(--text-primary);font:14px/1.55 "Pretendard","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif}
+.wrap{max-width:1180px;margin:0 auto;padding:28px 20px 60px}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;margin-bottom:18px}
+h1{font-size:22px;margin:0 0 4px;letter-spacing:-.01em}
+.sub{color:var(--text-secondary);font-size:13px}
+.badge{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;background:#fff3d6;color:#7a5200;border:1px solid #f0d48a}
+.card{background:var(--surface-1);border:1px solid var(--line);border-radius:12px;padding:18px 20px;margin-bottom:16px}
+.card h2{font-size:15px;margin:0 0 12px;letter-spacing:-.01em}
+.card h2 small{font-weight:400;color:var(--text-muted);font-size:12px;margin-left:6px}
+.grid2{display:grid;grid-template-columns:1.15fr 1fr;gap:16px}
+@media(max-width:860px){.grid2{grid-template-columns:1fr}}
+.hero{display:flex;gap:18px;align-items:center}
+.stagebox{min-width:150px;border-radius:12px;padding:14px 16px;color:#fff;text-align:center}
+.stagebox .n{font-size:40px;font-weight:800;line-height:1}
+.stagebox .t{font-size:14px;font-weight:600;margin-top:4px}
+.hero p{margin:4px 0;color:var(--text-secondary)}
+.hero p b{color:var(--text-primary)}
+.kv{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-top:14px}
+.kv div{background:var(--surface-0);border-radius:8px;padding:8px 10px}
+.kv span{display:block;font-size:11px;color:var(--text-muted)}
+.kv b{font-size:15px;font-variant-numeric:tabular-nums}
+.chip{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:-1px}
+.checks{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+@media(max-width:860px){.checks{grid-template-columns:1fr 1fr}}
+.checks h3{font-size:13px;margin:0 0 6px}
+.checks ul{list-style:none;margin:0;padding:0}
+.checks li{display:flex;gap:6px;font-size:12.5px;padding:4px 0;border-bottom:1px dashed var(--grid);color:var(--text-secondary)}
+.checks li.on{color:var(--text-primary)}
+.checks li i{font-style:normal;width:16px;flex:none;font-weight:700}
+.checks li.on i{color:var(--text-primary)} .checks li.off i{color:var(--text-muted)}
+.checks li em{font-style:normal;color:var(--text-muted);margin-left:auto;white-space:nowrap;font-variant-numeric:tabular-nums}
+.score{font-size:12px;color:var(--text-muted);margin-bottom:6px}
+.toolbar{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.toolbar button{border:1px solid var(--line);background:var(--surface-1);border-radius:7px;padding:4px 11px;font:inherit;font-size:12.5px;cursor:pointer;color:var(--text-secondary)}
+.toolbar button.on{background:var(--text-primary);color:#fff;border-color:var(--text-primary)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--text-secondary);margin-left:auto}
+.legend .ln{display:inline-block;width:16px;height:2px;vertical-align:3px;margin-right:5px}
+.chartbox{position:relative}
+canvas{display:block;width:100%}
+.tip{position:absolute;pointer-events:none;background:rgba(20,20,19,.92);color:#fff;font-size:12px;padding:8px 10px;border-radius:8px;white-space:nowrap;display:none;z-index:2;font-variant-numeric:tabular-nums;line-height:1.5}
+table{width:100%;border-collapse:collapse;font-size:12.5px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;border-bottom:1px solid var(--grid);text-align:right}
+th{color:var(--text-muted);font-weight:500;font-size:12px}
+th:first-child,td:first-child{text-align:left;white-space:nowrap}
+.sim{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:12px}
+@media(max-width:860px){.sim{grid-template-columns:1fr}}
+.sim label{font-size:12px;color:var(--text-secondary);display:block;margin-bottom:4px}
+.sim label b{color:var(--text-primary);font-variant-numeric:tabular-nums}
+.sim input[type=range]{width:100%}
+.simout{background:var(--surface-0);border-radius:8px;padding:10px 12px;font-size:13px;color:var(--text-secondary)}
+.simout b{color:var(--text-primary)}
+.map td{text-align:center;padding:0;border:2px solid var(--surface-1)}
+.map td div{padding:7px 0;font-weight:600;font-size:12px;border-radius:4px;color:var(--text-primary)}
+.map th{text-align:center}
+.map td.cur div{outline:2px solid var(--text-primary);outline-offset:-2px}
+.note{font-size:12.5px;color:var(--text-secondary)}
+.note p{margin:0 0 8px}
+.watch li{margin-bottom:6px;color:var(--text-secondary)} .watch li b{color:var(--text-primary)}
+.watch{padding-left:18px;margin:6px 0 0;font-size:13px}
+.muted{color:var(--text-muted)}
+details summary{cursor:pointer;color:var(--text-secondary);font-size:13px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<header>
+  <div>
+    <h1>코스피 4단계 국면 판정</h1>
+    <div class="sub">마크 미너비니 『초수익 성장주 투자』 5장 기준 · 한투 코스피 일봉 <span id="asof"></span></div>
+  </div>
+  <div id="prov"></div>
+</header>
+
+<div class="grid2">
+  <div class="card">
+    <h2>지금 몇 단계인가</h2>
+    <div class="hero">
+      <div class="stagebox" id="heroBox"><div class="n" id="heroN"></div><div class="t" id="heroT"></div></div>
+      <div id="heroTxt"></div>
+    </div>
+    <div class="kv" id="kv"></div>
+  </div>
+  <div class="card">
+    <h2>앞으로 무엇이 단계를 바꾸나</h2>
+    <div id="watch"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>단계별 조건 충족 현황 <small id="chkDate"></small></h2>
+  <div class="checks" id="checks"></div>
+</div>
+
+<div class="card">
+  <h2>코스피와 단계 이력</h2>
+  <div class="toolbar">
+    <button data-r="250">1년</button><button data-r="750" class="on">3년</button><button data-r="1250">5년</button><button data-r="0">전체</button>
+    <div class="legend">
+      <span><span class="ln" style="background:var(--text-primary)"></span>코스피</span>
+      <span><span class="ln" style="background:var(--ma50)"></span>50일선</span>
+      <span><span class="ln" style="background:var(--ma150)"></span>150일선</span>
+      <span><span class="ln" style="background:var(--ma200)"></span>200일선</span>
+      <span><span class="chip" style="background:var(--st1);opacity:.45"></span>1단계</span>
+      <span><span class="chip" style="background:var(--st2);opacity:.45"></span>2단계</span>
+      <span><span class="chip" style="background:var(--st3);opacity:.45"></span>3단계</span>
+      <span><span class="chip" style="background:var(--st4);opacity:.45"></span>4단계</span>
+    </div>
+  </div>
+  <div class="chartbox"><canvas id="cv" height="380"></canvas><div class="tip" id="tip"></div></div>
+  <div class="chartbox" style="margin-top:6px"><canvas id="cvv" height="90"></canvas></div>
+  <div class="muted" style="font-size:11.5px;margin-top:4px">아래 막대: 일간 거래량(천주), 막대 색은 그날 단계. 점선 구간은 아래 시나리오 입력으로 그린 가상 경로입니다.</div>
+</div>
+
+<div class="card">
+  <h2>시나리오: 지수가 이렇게 움직이면 몇 단계가 되나</h2>
+  <div class="sim">
+    <div><label>기간 <b id="lbH"></b></label><input type="range" id="inH" min="5" max="250" step="5" value="60"></div>
+    <div><label>기간 동안 코스피 등락률 <b id="lbR"></b></label><input type="range" id="inR" min="-40" max="40" step="1" value="0"></div>
+    <div><label>거래량(최근 50일 평균 대비) <b id="lbV"></b></label><input type="range" id="inV" min="0.5" max="2" step="0.1" value="1"></div>
+  </div>
+  <div class="simout" id="simOut"></div>
+  <h2 style="margin-top:18px">시나리오 지도 <small>행: 기간, 열: 기간 동안 등락률, 칸: 기간 끝의 단계</small></h2>
+  <table class="map" id="map"></table>
+</div>
+
+<div class="grid2">
+  <div class="card">
+    <h2>단계 구간 기록 <small>최근 순</small></h2>
+    <div style="max-height:360px;overflow:auto"><table id="segT"></table></div>
+  </div>
+  <div class="card">
+    <h2>단계별 이후 코스피 수익률 <small id="fwdRange"></small></h2>
+    <table id="fwdT"></table>
+    <p class="note" style="margin-top:10px">판정일 종가에서 N영업일 뒤 종가까지의 수익률입니다. 같은 판정 규칙으로 과거를 다시 계산한 표본 내 결과이고, 날짜가 겹치는 표본이라 독립 관측치보다 신뢰도가 낮습니다.</p>
+  </div>
+</div>
+
+<div class="card note">
+  <h2>판정 방법</h2>
+  <p>책은 주가가 1단계(무시·보합)에서 2단계(상승·매집), 3단계(고점·분산), 4단계(하락·투매)로 돈다고 봅니다. 여기서는 각 단계의 특징을 코스피 일봉으로 확인할 수 있는 조건으로 옮겼습니다.</p>
+  <p><b>2단계</b>는 책이 든 1→2단계 전환 요건 6개와 "단기 이동평균선이 장기선 위" 조건까지 7개로 봅니다. 종가가 150일선과 200일선 위, 150일선이 200일선 위, 200일선 상승이라는 핵심 3개가 모두 맞고 7개 중 6개 이상이면 2단계로 들어갑니다. <b>4단계</b>는 그 반대 7개이고, 종가가 200일선 아래이면서 200일선이 하락 중이고 7개 중 5개 이상이면 들어갑니다.</p>
+  <p>3단계와 1단계는 앞뒤 단계로 판단합니다. 2단계의 핵심 조건이 깨지거나, 핵심은 살아 있어도 변동성 확대·50일선 이탈·200일선 둔화·대량 하락 주 같은 경고가 4개 중 3개 이상 나오면 3단계입니다. 4단계에서 200일선 하락이나 200일선 아래라는 핵심이 풀리거나 바닥 신호가 3개 이상이면 1단계입니다.</p>
+  <p>하루 이틀 흔들림에 단계가 바뀌지 않도록, 같은 후보 단계가 <b id="pConfirm"></b>영업일 이어져야 전환을 확정합니다. 그래서 전환은 실제 변곡보다 2주가량 늦게 잡힙니다. 200일선 기울기는 21영업일 전 대비 변화율로 재고, ±<span id="pRise"></span>% 안이면 횡보로 봅니다.</p>
+  <p>시나리오는 지금 종가에서 목표 수준까지 매일 같은 비율로 움직인다고 가정하고 가상의 일봉을 붙여 같은 규칙으로 다시 판정한 결과입니다. 실제 경로는 들쭉날쭉하므로 같은 등락률이라도 결과가 다를 수 있습니다.</p>
+  <details><summary>파라미터 전체</summary><pre id="params" style="font-size:12px"></pre></details>
+</div>
+<div class="muted" style="font-size:11.5px">자료: Quantiwise, 유진투자증권</div>
+</div>
+
+<script>/*__STAGE_JS__*/</script>
+<script>
+const RAW = /*__DATA__*/;
+const NAMES = {1:'무시 국면 · 보합', 2:'상승 국면 · 매집', 3:'고점 국면 · 분산', 4:'하락 국면 · 투매'};
+const ACTION = {
+  1:'바닥을 다지는 중입니다. 책은 아무리 끌려도 이 단계에서는 사지 말라고 합니다. 2단계 전환 요건이 갖춰지는지 지켜볼 때입니다.',
+  2:'책이 매수 대상으로 보는 유일한 단계입니다. 고점과 저점이 높아지는 동안은 추세를 따라갑니다.',
+  3:'상승 추세가 흔들리는 고점권입니다. 신규 매수는 줄이고 보유 비중을 점검할 구간입니다.',
+  4:'하락 추세입니다. 매수하지 않습니다. 200일선 하락이 멈추고 바닥 신호가 쌓일 때까지 기다립니다.'};
+const COL = s => getComputedStyle(document.documentElement).getPropertyValue('--st' + s).trim();
+const fmt = (x, d = 0) => x == null ? '–' : x.toLocaleString('ko-KR', {minimumFractionDigits: d, maximumFractionDigits: d});
+const pct = (x, d = 1) => x == null ? '–' : (x > 0 ? '+' : '') + (x * 100).toFixed(d) + '%';
+const D = RAW.D;
+const R = Stage.classify(D);
+const N = D.c.length, L = N - 1;
+const seg = Stage.segments(D, R.stage);
+const X = R.X[L], cur = R.stage[L];
+
+document.getElementById('asof').textContent = '· 기준일 ' + D.d[L];
+if (RAW.provisional) document.getElementById('prov').innerHTML = '<span class="badge">' + D.d[L] + ' 종가는 18시 전 수집분이라 잠정치입니다</span>';
+document.getElementById('pConfirm').textContent = Stage.P.confirm;
+document.getElementById('pRise').textContent = (Stage.P.rise * 100).toFixed(1);
+document.getElementById('params').textContent = JSON.stringify(Stage.P, null, 2);
+
+/* ── 히어로 ── */
+const lastSeg = seg[seg.length - 1];
+document.getElementById('heroBox').style.background = COL(cur);
+document.getElementById('heroN').textContent = cur + '단계';
+document.getElementById('heroT').textContent = NAMES[cur];
+let pendTxt = '';
+{ let k = L, cnt = 0; while (k >= 0 && R.cand[k] === R.cand[L] && R.cand[L] !== cur) { cnt++; k--; }
+  if (cnt) pendTxt = `<p>후보 단계가 <b>${R.cand[L]}단계</b>로 ${cnt}영업일째 바뀌어 있습니다. ${Stage.P.confirm}영업일을 채우면 전환됩니다.</p>`; }
+document.getElementById('heroTxt').innerHTML =
+  `<p><b>${lastSeg.from}</b>부터 ${lastSeg.days}영업일째 ${cur}단계입니다. 그동안 코스피는 <b>${Math.abs(lastSeg.ret * 100).toFixed(1)}%</b> ${lastSeg.ret < 0 ? '내렸' : '올랐'}습니다.</p>` +
+  pendTxt + `<p>${ACTION[cur]}</p>`;
+document.getElementById('kv').innerHTML = [
+  ['코스피', fmt(X.close, 2)], ['200일선 대비', pct(X.close / X.ma200 - 1)],
+  ['200일선 기울기(월)', pct(X.slope)], ['52주 고점 대비', pct(X.close / X.high52 - 1)]
+].map(([k, v]) => `<div><span>${k}</span><b>${v}</b></div>`).join('');
+
+/* ── 조건 체크리스트 ── */
+const CHK = [
+  {s:2, title:'2단계 조건', score:'s2', of:7, need:'핵심 c1·c2·c3 + 6개 이상', items:[
+    ['c1','종가가 150일선·200일선 위', `${fmt(X.ma150)} / ${fmt(X.ma200)}`],
+    ['c2','150일선이 200일선 위', pct(X.ma150 / X.ma200 - 1)],
+    ['c3','200일선 상승', pct(X.slope) + '/월'],
+    ['c4','고점·저점이 함께 높아짐(63일 비교)', ''],
+    ['c5','상승 주 평균 거래량 > 하락 주', (X.upAvg / (X.dnAvg || 1)).toFixed(2) + '배'],
+    ['c6','대량 상승 주가 대량 하락 주보다 많음', `${X.upHeavy} : ${X.dnHeavy}`],
+    ['c7','50일선이 150일선 위', pct(X.ma50 / X.ma150 - 1)]]},
+  {s:3, title:'3단계 경고', score:'s3', of:4, need:'2단계에서 3개 이상이면 3단계', items:[
+    ['e1','변동성 확대(20일 변동성 ≥ 1년 중앙값×1.3)', `${(X.rv * 100).toFixed(0)}% vs ${(X.rvMed * 100).toFixed(0)}%`],
+    ['e2','종가가 50일선 아래', fmt(X.ma50)],
+    ['e3','200일선 상승 둔화·횡보', pct(X.slope) + '/월'],
+    ['e4','최근 8주 대량 하락 주 2회 이상', '']]},
+  {s:4, title:'4단계 조건', score:'s4', of:7, need:'핵심 d1·d2 + 5개 이상', items:[
+    ['d1','종가가 200일선 아래', fmt(X.ma200)],
+    ['d2','200일선 하락', pct(X.slope) + '/월'],
+    ['d3','52주 신저가 근처(+15% 이내)', '저가 ' + fmt(X.low52)],
+    ['d4','고점·저점이 함께 낮아짐(63일 비교)', ''],
+    ['d5','하락 주 평균 거래량 > 상승 주', (X.dnAvg / (X.upAvg || 1)).toFixed(2) + '배'],
+    ['d6','대량 하락 주가 대량 상승 주보다 많음', `${X.dnHeavy} : ${X.upHeavy}`],
+    ['d7','50일선이 150일선 아래', pct(X.ma50 / X.ma150 - 1)]]},
+  {s:1, title:'1단계 신호', score:'s1', of:4, need:'4단계에서 3개 이상이면 1단계', items:[
+    ['f1','200일선 횡보(±0.5%/월 이내)', pct(X.slope) + '/월'],
+    ['f2','종가가 200일선 ±7% 안', pct(X.close / X.ma200 - 1)],
+    ['f3','50일 평균 거래량 < 200일 평균', ''],
+    ['f4','최근 두 달 52주 신저가 없음', '']]},
+];
+document.getElementById('chkDate').textContent = D.d[L] + ' 종가 기준';
+document.getElementById('checks').innerHTML = CHK.map(g => `<div>
+  <h3><span class="chip" style="background:${COL(g.s)}"></span>${g.title}</h3>
+  <div class="score">${X[g.score]} / ${g.of} 충족 · ${g.need}</div>
+  <ul>${g.items.map(([k, t, v]) => `<li class="${X[k] ? 'on' : 'off'}"><i>${X[k] ? '✓' : '·'}</i>${t}<em>${v}</em></li>`).join('')}</ul></div>`).join('');
+
+/* ── 시나리오 계산 ── */
+function runScenario(h, r, vm) {
+  const E = Stage.extend(D, h, r, vm), RR = Stage.classify(E);
+  const tr = []; for (let i = N; i < E.c.length; i++) if (RR.stage[i] !== RR.stage[i - 1]) tr.push({d: E.d[i], from: RR.stage[i - 1], to: RR.stage[i], c: E.c[i]});
+  return {E, RR, tr, end: RR.stage[E.c.length - 1]};
+}
+/* 다음 전환 관찰 포인트: 횡보·하락·상승 시 전환일 */
+function firstChange(r, h) { const s = runScenario(h, r, 1); return s.tr[0] || null; }
+{
+  const items = [];
+  const nb = {1:[2,4], 2:[3], 3:[4,2], 4:[1,2]}[cur];
+  const flat = firstChange(0, 120), dn = firstChange(-0.10, 60), up = firstChange(0.10, 60);
+  const say = (lab, t) => t ? `<li>${lab}: <b>${t.d}</b>에 ${t.from}→<b>${t.to}단계</b> 전환 (그때 코스피 ${fmt(t.c)})</li>` : `<li>${lab}: 해당 기간 안에는 ${cur}단계 유지</li>`;
+  items.push(say(`지금 수준(${fmt(X.close)})에서 6개월 횡보`, flat));
+  items.push(say('3개월 동안 10% 하락', dn));
+  items.push(say('3개월 동안 10% 상승', up));
+  let watch = '<ul class="watch">' + items.join('') + '</ul>';
+  // 다음 단계 문턱
+  const lines = [];
+  if (cur === 3 || cur === 2) {
+    lines.push(`<b>4단계 문턱</b>: 종가가 200일선(${fmt(X.ma200)}) 아래${X.d1 ? '(이미 충족)' : ''}이면서 200일선이 월 −${(Stage.P.rise*100).toFixed(1)}% 넘게 꺾여야 합니다. 지금 기울기는 ${pct(X.slope)}/월입니다.`);
+    lines.push(`<b>2단계 복귀 문턱</b>: 종가가 150일선(${fmt(X.ma150)})과 200일선(${fmt(X.ma200)}) 위로 올라서고, 150일선 > 200일선, 200일선 상승이 함께 유지돼야 합니다. 두 선 중 높은 쪽이 지금 코스피보다 ${(Math.abs(Math.max(X.ma150, X.ma200) / X.close - 1) * 100).toFixed(1)}% ${Math.max(X.ma150, X.ma200) > X.close ? '위' : '아래'}에 있습니다.`);
+  } else {
+    lines.push(`<b>2단계 문턱</b>: 종가가 150일선(${fmt(X.ma150)})과 200일선(${fmt(X.ma200)}) 위, 150일선 > 200일선, 200일선 상승. 두 선 중 높은 쪽이 지금 코스피보다 ${(Math.abs(Math.max(X.ma150, X.ma200) / X.close - 1) * 100).toFixed(1)}% ${Math.max(X.ma150, X.ma200) > X.close ? '위' : '아래'}에 있습니다.`);
+    if (cur === 1) lines.push(`<b>4단계 문턱</b>: 종가 200일선 아래 + 200일선 월 −${(Stage.P.rise*100).toFixed(1)}% 이상 하락. 지금 기울기 ${pct(X.slope)}/월.`);
+    else lines.push(`<b>1단계 문턱</b>: 200일선 하락이 멈추거나(지금 ${pct(X.slope)}/월) 종가가 200일선 위로 올라서는 것.`);
+  }
+  watch += '<p class="note" style="margin-top:10px">' + lines.join('<br>') + '</p>';
+  watch += '<p class="muted" style="font-size:11.5px">경로는 매일 같은 비율로 움직인다고 가정한 가상 일봉입니다. 거래량은 최근 50일 평균으로 둡니다.</p>';
+  document.getElementById('watch').innerHTML = watch;
+}
+
+/* ── 차트 ── */
+let range = 750, SIM = null;
+const cv = document.getElementById('cv'), cvv = document.getElementById('cvv'), tip = document.getElementById('tip');
+function setup(c) { const r = devicePixelRatio || 1, w = c.clientWidth, h = +c.getAttribute('height'); c.width = w * r; c.height = h * r; c.style.height = h + 'px'; const g = c.getContext('2d'); g.setTransform(r, 0, 0, r, 0, 0); return {g, w, h}; }
+const PAD = {l: 8, r: 72, t: 10, b: 22};
+let geo = null;
+function draw() {
+  const src = SIM ? SIM.E : D, st = SIM ? SIM.RR.stage : R.stage, I = SIM ? SIM.RR.I : R.I;
+  const n = src.c.length, i0 = range ? Math.max(260, N - range) : 260, i1 = n - 1;
+  const {g, w, h} = setup(cv);
+  const pw = w - PAD.l - PAD.r, ph = h - PAD.t - PAD.b;
+  let lo = Infinity, hi = -Infinity;
+  for (let i = i0; i <= i1; i++) for (const v of [src.l[i], src.h[i], I.ma200[i], I.ma150[i], I.ma50[i]]) if (v) { lo = Math.min(lo, v); hi = Math.max(hi, v); }
+  const ly0 = Math.log(lo * 0.97), ly1 = Math.log(hi * 1.03);
+  const X_ = i => PAD.l + (i - i0) / Math.max(1, i1 - i0) * pw, Y = v => PAD.t + (1 - (Math.log(v) - ly0) / (ly1 - ly0)) * ph;
+  geo = {i0, i1, X_, pw, src, st, I};
+  g.clearRect(0, 0, w, h);
+  // 단계 배경
+  const bw = pw / Math.max(1, i1 - i0);
+  for (let i = i0; i <= i1; i++) { if (!st[i]) continue; let j = i; while (j < i1 && st[j + 1] === st[i] && (j + 1 < N) === (i < N)) j++;
+    const xa = Math.max(PAD.l, X_(i) - bw / 2), xb = Math.min(PAD.l + pw, X_(j) + bw / 2);
+    g.fillStyle = COL(st[i]); g.globalAlpha = i >= N ? 0.10 : 0.16; g.fillRect(xa, PAD.t, xb - xa, ph); i = j; }
+  g.globalAlpha = 1;
+  // 그리드
+  g.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--grid'); g.lineWidth = 1; g.fillStyle = '#86857f'; g.font = '11px system-ui';
+  const step = niceStep(lo, hi);
+  for (let v = Math.ceil(lo / step) * step; v <= hi; v += step) { const y = Y(v); g.beginPath(); g.moveTo(PAD.l, y); g.lineTo(PAD.l + pw, y); g.stroke(); g.fillText(fmt(v), PAD.l + pw + 6, y + 4); }
+  let lastY = null;
+  for (let i = i0; i <= i1; i++) { const y = src.d[i].slice(0, 4); if (y !== lastY && i > i0 && (range === 0 || range > 300 || src.d[i].slice(5, 7) === '01')) { g.fillText(range && range <= 300 ? src.d[i].slice(0, 7) : y, X_(i) - 12, h - 6); } lastY = y; }
+  if (range && range <= 300) { let lm = null; for (let i = i0; i <= i1; i++) { const m = src.d[i].slice(0, 7); if (m !== lm && i > i0 && +m.slice(5) % 3 === 1) g.fillText(m, X_(i) - 18, h - 6); lm = m; } }
+  // 선
+  const line = (arr, col, wd, dash, from = i0, to = i1) => { g.strokeStyle = col; g.lineWidth = wd; g.setLineDash(dash || []); g.beginPath(); let s = false; for (let i = from; i <= to; i++) { const v = arr[i]; if (v == null) continue; const x = X_(i), y = Y(v); s ? g.lineTo(x, y) : (g.moveTo(x, y), s = true); } g.stroke(); g.setLineDash([]); };
+  const css = k => getComputedStyle(document.documentElement).getPropertyValue(k).trim();
+  line(I.ma200, css('--ma200'), 1.6); line(I.ma150, css('--ma150'), 1.4); line(I.ma50, css('--ma50'), 1.4);
+  line(src.c, css('--text-primary'), 1.8, null, i0, Math.min(i1, N - 1));
+  if (i1 >= N) line(src.c, css('--text-primary'), 1.8, [5, 4], N - 1, i1);
+  // 오늘 표시
+  g.fillStyle = css('--text-primary'); g.beginPath(); g.arc(X_(N - 1), Y(D.c[N - 1]), 4, 0, 7); g.fill();
+  g.strokeStyle = '#fcfcfb'; g.lineWidth = 2; g.stroke();
+  // 거래량
+  const V = setup(cvv), vw = V.w - PAD.l - PAD.r; let vmax = 0;
+  for (let i = i0; i <= i1; i++) vmax = Math.max(vmax, src.v[i]);
+  V.g.clearRect(0, 0, V.w, V.h);
+  const bwv = Math.max(1, vw / Math.max(1, i1 - i0) - 0.6);
+  for (let i = i0; i <= i1; i++) { const x = PAD.l + (i - i0) / Math.max(1, i1 - i0) * vw, hh = src.v[i] / vmax * (V.h - 14); V.g.fillStyle = st[i] ? COL(st[i]) : '#ccc'; V.g.globalAlpha = i >= N ? 0.35 : 0.75; V.g.fillRect(x - bwv / 2, V.h - hh, bwv, hh); }
+  V.g.globalAlpha = 1; V.g.fillStyle = '#86857f'; V.g.font = '11px system-ui'; V.g.fillText(fmt(vmax / 1000) + '백만주', PAD.l + vw + 6, 12);
+}
+function niceStep(lo, hi) { const raw = (hi - lo) / 5, p = Math.pow(10, Math.floor(Math.log10(raw))); for (const m of [1, 2, 2.5, 5, 10]) if (raw <= m * p) return m * p; return 10 * p; }
+cv.addEventListener('mousemove', e => {
+  if (!geo) return; const r = cv.getBoundingClientRect(), x = e.clientX - r.left;
+  const i = Math.round(geo.i0 + (x - PAD.l) / geo.pw * (geo.i1 - geo.i0)); if (i < geo.i0 || i > geo.i1) { tip.style.display = 'none'; return; }
+  const s = geo.src, I = geo.I, st = geo.st[i];
+  tip.innerHTML = `<b>${s.d[i]}</b>${i >= N ? ' (가상)' : ''}<br>코스피 ${fmt(s.c[i], 2)}<br>50일 ${fmt(I.ma50[i])} · 150일 ${fmt(I.ma150[i])} · 200일 ${fmt(I.ma200[i])}<br>${st ? `<span class="chip" style="background:${COL(st)}"></span>${st}단계 ${NAMES[st]}` : '판정 전'}`;
+  tip.style.display = 'block'; const tx = Math.min(x + 14, r.width - tip.offsetWidth - 4); tip.style.left = tx + 'px'; tip.style.top = '12px';
+});
+cv.addEventListener('mouseleave', () => tip.style.display = 'none');
+document.querySelectorAll('.toolbar button').forEach(b => b.onclick = () => { document.querySelectorAll('.toolbar button').forEach(x => x.classList.remove('on')); b.classList.add('on'); range = +b.dataset.r; draw(); });
+addEventListener('resize', draw);
+
+/* ── 시나리오 입력 ── */
+const inH = document.getElementById('inH'), inR = document.getElementById('inR'), inV = document.getElementById('inV');
+function sim() {
+  const h = +inH.value, r = +inR.value / 100, vm = +inV.value;
+  document.getElementById('lbH').textContent = h + '영업일(약 ' + (h / 21).toFixed(1) + '개월)';
+  document.getElementById('lbR').textContent = pct(r, 0) + ' → ' + fmt(D.c[L] * (1 + r));
+  document.getElementById('lbV').textContent = vm.toFixed(1) + '배';
+  SIM = runScenario(h, r, vm);
+  const t = SIM.tr.map(x => `${x.d} ${x.from}→<b>${x.to}단계</b>`).join(', ');
+  document.getElementById('simOut').innerHTML = `${h}영업일 뒤(${SIM.E.d[SIM.E.d.length - 1]}) 코스피가 ${fmt(SIM.E.c[SIM.E.c.length - 1])}이면 <b><span class="chip" style="background:${COL(SIM.end)}"></span>${SIM.end}단계 ${NAMES[SIM.end]}</b>로 판정됩니다. ` + (t ? '경로 중 전환: ' + t + '.' : '경로 중 단계 전환은 없습니다.');
+  draw();
+}
+[inH, inR, inV].forEach(x => x.addEventListener('input', sim));
+
+/* ── 시나리오 지도 ── */
+{
+  const Hs = [20, 60, 120, 250], Rs = [-30, -20, -15, -10, -5, 0, 5, 10, 15, 20, 30];
+  let html = '<tr><th></th>' + Rs.map(r => `<th>${r > 0 ? '+' : ''}${r}%</th>`).join('') + '</tr>';
+  for (const h of Hs) {
+    html += `<tr><th style="text-align:left">${h}영업일</th>` + Rs.map(r => { const s = runScenario(h, r / 100, 1).end;
+      return `<td class="${r === 0 ? 'cur' : ''}" title="${h}영업일 ${r}% → ${s}단계"><div style="background:${COL(s)}33;box-shadow:inset 0 -3px 0 ${COL(s)}">${s}</div></td>`; }).join('') + '</tr>';
+  }
+  document.getElementById('map').innerHTML = html;
+}
+
+/* ── 구간 기록 ── */
+document.getElementById('segT').innerHTML = '<tr><th>단계</th><th>시작</th><th>끝</th><th>영업일</th><th>코스피 등락</th></tr>' +
+  seg.slice().reverse().map(s => `<tr><td><span class="chip" style="background:${COL(s.stage)}"></span>${s.stage}단계</td><td>${s.from}</td><td>${s.to}</td><td>${s.days}</td><td>${pct(s.ret)}</td></tr>`).join('');
+
+/* ── 단계별 이후 수익률 ── */
+{
+  const Hs = [20, 60, 120]; let html = '<tr><th>단계</th><th>판정일 수</th>' + Hs.map(h => `<th>${h}일 평균</th><th>${h}일 상승확률</th>`).join('') + '</tr>';
+  for (const s of [1, 2, 3, 4]) {
+    const days = R.stage.filter(x => x === s).length;
+    html += `<tr><td><span class="chip" style="background:${COL(s)}"></span>${s}단계</td><td>${fmt(days)}</td>` + Hs.map(h => { const a = []; for (let i = 0; i < N - h; i++) if (R.stage[i] === s) a.push(D.c[i + h] / D.c[i] - 1);
+      return `<td>${pct(a.reduce((p, q) => p + q, 0) / a.length)}</td><td>${(a.filter(z => z > 0).length / a.length * 100).toFixed(0)}%</td>`; }).join('') + '</tr>';
+  }
+  document.getElementById('fwdT').innerHTML = html;
+  const first = R.stage.findIndex(x => x != null);
+  document.getElementById('fwdRange').textContent = D.d[first] + ' ~ ' + D.d[L];
+}
+sim();
+</script>
+</body>
+</html>
